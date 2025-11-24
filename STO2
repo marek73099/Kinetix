@@ -1,0 +1,99 @@
+from fpdf import FPDF
+import os
+import glob
+
+def load_config(config_file):
+    config = {"title": "Document", "date": "", "footer": ""}
+    if os.path.exists(config_file):
+        with open(config_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if "=" in line:
+                    key, value = line.strip().split("=", 1)
+                    config[key.strip()] = value.strip()
+    return config
+
+class PDF(FPDF):
+    def __init__(self, footer_text):
+        super().__init__()
+        self.footer_text = footer_text
+
+    def header(self):
+        pass
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", size=8)
+        self.cell(0, 10, self.footer_text, align="C")
+
+def add_text_section(pdf, title, text_file):
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, title, ln=True)
+    pdf.set_font("Arial", size=12)
+    with open(text_file, "r", encoding="utf-8") as f:
+        content = f.read()
+    pdf.multi_cell(0, 10, content)
+
+def add_image_section(pdf, title, image_file):
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, title, ln=True)
+    if os.path.exists(image_file):
+        pdf.image(image_file, x=10, y=30, w=180)
+    else:
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, f"Image file '{image_file}' not found.")
+
+def main():
+    content_folder = "content"
+    config = load_config("config.txt")
+
+    pdf = PDF(footer_text=config.get("footer", ""))
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, config.get("title", "Document"), ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    if config.get("date"):
+        pdf.cell(0, 10, f"Date: {config['date']}", ln=True, align='C')
+    pdf.ln(20)
+
+    files = sorted(glob.glob(os.path.join(content_folder, "*")))
+    for file in files:
+        ext = os.path.splitext(file)[1].lower()
+        name = os.path.basename(file)
+        title = os.path.splitext(name)[0].replace("_", " ").title()
+
+        if ext == ".txt":
+            add_text_section(pdf, title, file)
+        elif ext in [".png", ".jpg", ".jpeg"]:
+            add_image_section(pdf, title, file)
+
+    output_file = "anheuser_busch_document.pdf"
+    pdf.output(output_file)
+    print(f"✅ PDF generated: {output_file}")
+
+if __name__ == "__main__":
+    main()
+@echo off
+python --version >nul 2>&1
+IF ERRORLEVEL 1 (
+    echo Python is not installed. Please install Python 3 from https://www.python.org/downloads/
+    pause
+    exit /b
+)
+
+pip show fpdf2 >nul 2>&1
+IF ERRORLEVEL 1 (
+    echo Installing required library fpdf2...
+    pip install fpdf2
+)
+
+echo Generating PDF...
+python generate_document.py
+
+echo.
+echo ✅ PDF generation complete!
+echo Output file: anheuser_busch_document.pdf
+pause
